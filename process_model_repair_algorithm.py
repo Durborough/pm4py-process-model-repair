@@ -312,8 +312,8 @@ def extract_place_from_marking(marking):
 
 # Repair Algorithm
 
-# This Algorithm implements the process model repair Algorithm
-# proposed by the paper "Repairing process models to reflect reality" by Dirk Fahland and Wil van der Aalst
+# This Algorithm implements a version of a process model repair Algorithm
+# inspired by the paper "Repairing process models to reflect reality" by Dirk Fahland and Wil van der Aalst
 # Input: petri net, initial marking, final marking, event log
 # Output: repaired Petri net, intial marking, final marking
 def repair_process_model(net, im, fm, event_log):
@@ -340,6 +340,7 @@ def repair_process_model(net, im, fm, event_log):
     # 2. Fix all moves on log
     # Create map of last place reached as key and sub-log dataframe of sub-traces as value
     sublogs = get_sublogs_with_places(traces_to_be_repaired, event_log, net, im, fm)
+
     # 3. Optimise the sublogs
     sublogs = optimize_sublogs(sublogs)
 
