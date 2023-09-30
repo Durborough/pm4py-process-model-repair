@@ -52,8 +52,14 @@ def trace_is_fit(trace, net, im, fm):
 
 
 def get_reached_marking(trace, net, im, fm):
-    parameters_tbr = {token_based_replay.Variants.TOKEN_REPLAY.value.Parameters.STOP_IMMEDIATELY_UNFIT: True}#, token_based_replay.Variants.TOKEN_REPLAY.value.Parameters.WALK_THROUGH_HIDDEN_TRANS: True}
-    fitness = token_based_replay.apply(trace, net, im, fm, parameters=parameters_tbr)
+    # handle case where trace is empty df
+    if trace.empty:
+        return im
+    # , token_based_replay.Variants.TOKEN_REPLAY.value.Parameters.WALK_THROUGH_HIDDEN_TRANS: True}
+    parameters_tbr = {
+        token_based_replay.Variants.TOKEN_REPLAY.value.Parameters.STOP_IMMEDIATELY_UNFIT: True}
+    fitness = token_based_replay.apply(
+        trace, net, im, fm, parameters=parameters_tbr)
     return fitness[0]['reached_marking']
 
 
