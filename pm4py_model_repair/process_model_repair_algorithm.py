@@ -1,27 +1,12 @@
 import pm4py
 import pandas as pd
-import os
-import pprint as pp
-import uuid
-import networkx as nx
-import numpy as np
-import time
 
-from pm4py.algo.simulation.playout.petri_net import algorithm as simulator
-from pm4py.objects.petri_net.utils.final_marking import discover_final_marking
-from pm4py.objects.petri_net.utils.initial_marking import discover_initial_marking
 
 from pm4py.objects.petri_net.obj import PetriNet
 from pm4py.objects.petri_net.utils import petri_utils
 from pm4py.objects.petri_net.utils.petri_utils import get_transition_by_name
-from pm4py.objects.petri_net.utils.final_marking import discover_final_marking
-from pm4py.objects.petri_net.utils.initial_marking import discover_initial_marking
 from pm4py.algo.conformance.alignments.petri_net import algorithm as alignments
 from pm4py.algo.conformance.tokenreplay import algorithm as token_based_replay
-from pm4py.objects.bpmn.layout.variants.graphviz import Parameters as bpmn_layouter_parameters
-from pm4py.objects.bpmn.layout import layouter as bpmn_layouter
-from pm4py.objects.bpmn.exporter import exporter as bpmn_exporter
-
 
 
 # Helper Functions
@@ -115,12 +100,15 @@ def get_transition_by_label(net: PetriNet, transition_label):
 def skip_transition(net, transition_to_be_skipped_name):
     SKIP_NODE_BASE_NAME = "skip_transition_skip_BASE_NAME_"
 
-    transition_to_be_skipped = get_transition_by_label(net, transition_to_be_skipped_name)
+    transition_to_be_skipped = get_transition_by_label(
+        net, transition_to_be_skipped_name)
     in_arcs = transition_to_be_skipped.in_arcs
     out_arcs = transition_to_be_skipped.out_arcs
     # The SKIP_NODE_BASE_NAME + transition is a unique name since transitions to be skipped is a set
-    petri_utils.add_transition(net, name=SKIP_NODE_BASE_NAME + str(transition_to_be_skipped_name), label=None)
-    new_transition = get_transition_by_name(net, SKIP_NODE_BASE_NAME + str(transition_to_be_skipped_name))
+    petri_utils.add_transition(
+        net, name=SKIP_NODE_BASE_NAME + str(transition_to_be_skipped_name), label=None)
+    new_transition = get_transition_by_name(
+        net, SKIP_NODE_BASE_NAME + str(transition_to_be_skipped_name))
     for arc in in_arcs:
         petri_utils.add_arc_from_to(arc.source, new_transition, net)
     for arc in out_arcs:
@@ -133,9 +121,7 @@ def skip_transition(net, transition_to_be_skipped_name):
 # Output: Set of transitions to be skipped to repair moves on model
 def get_transitions_to_be_skipped(traces_to_be_repaired, net, im, fm):
     transitions_to_be_skipped = set()
-    print("Checking traces for skips ", end="", flush=True)
     for trace_key, trace in traces_to_be_repaired.items():
-        print("|", end="", flush=True)
         # Calculate the alignment between the trace and the process model
         alignment = get_alignment(trace, net, im, fm)
 
@@ -143,16 +129,13 @@ def get_transitions_to_be_skipped(traces_to_be_repaired, net, im, fm):
         # Ignore synchronous moves (e.g.: (a, a)), and moves on log (e.g.: (a, >>)) for now
         transitions_to_be_skipped.update(
             set(map(lambda y: y[1], filter(lambda z: z[1] != None, filter(lambda x: x[0] == '>>' and x[1] != '>>', alignment)))))
-    print('')
     return transitions_to_be_skipped
 
 
 # Create map of last place reached as key and sub-log dataframe of sub-traces as value
 def get_sublogs_with_places(traces_to_be_repaired, event_log, net, im, fm):
     sublogs = {}
-    print("Checking traces for sub-traces ", end="", flush=True)
     for trace_key, trace in traces_to_be_repaired.items():
-        print("|", end="", flush=True)
         # Continue with next trace, if model is already repaired for current trace based on token based replay
         if trace_is_fit(trace, net, im, fm):
             continue
@@ -180,7 +163,8 @@ def get_sublogs_with_places(traces_to_be_repaired, event_log, net, im, fm):
                 if not move_on_log_subtrace.empty:
                     # Get last reached marking of the sub-trace.
                     # This corresponds to the marking reached before the sub-trace of moves on log started
-                    last_reached_marking = get_reached_marking(sync_moves_subtrace, net, im, fm)
+                    last_reached_marking = get_reached_marking(
+                        sync_moves_subtrace, net, im, fm)
 
                     # save the sub-trace of moves on log in the sub-traces map with the last place reached as key
                     sublogs[last_reached_marking] = pd.concat(
@@ -188,24 +172,28 @@ def get_sublogs_with_places(traces_to_be_repaired, event_log, net, im, fm):
                          move_on_log_subtrace], ignore_index=True)
 
                     # Reset the move_on_log_subtrace to be ready for the next potential sub-trace
-                    move_on_log_subtrace = pd.DataFrame(columns=event_log.columns)
+                    move_on_log_subtrace = pd.DataFrame(
+                        columns=event_log.columns)
                 # Drop first activity in event log
                 # (this should correspond to the sync move in the alignment element currently at hand) &
                 # continue with the next element
-                sync_moves_subtrace = pd.concat([sync_moves_subtrace, trace.iloc[0].to_frame().T], ignore_index=True)
+                sync_moves_subtrace = pd.concat(
+                    [sync_moves_subtrace, trace.iloc[0].to_frame().T], ignore_index=True)
                 trace = trace.iloc[1:]
 
             # If it is a move on log (e.g.: (a, >>)):
             elif is_move_on_log(element):
                 # append it to the dataframe of moves on log and remove it from the trace
                 # to_frame().T transforms the series resulting form the iloc[0] operation to a dataframe with one row
-                move_on_log_subtrace = pd.concat([move_on_log_subtrace, trace.iloc[0].to_frame().T], ignore_index=True)
+                move_on_log_subtrace = pd.concat(
+                    [move_on_log_subtrace, trace.iloc[0].to_frame().T], ignore_index=True)
                 trace = trace.iloc[1:]
 
                 if index == alignment_len:
                     # Get last reached marking of the sub-trace.
                     # This corresponds to the marking reached before the sub-trace of moves on log started
-                    last_reached_marking = get_reached_marking(sync_moves_subtrace, net, im, fm)
+                    last_reached_marking = get_reached_marking(
+                        sync_moves_subtrace, net, im, fm)
 
                     # save the sub-trace of moves on log in the sub-traces map with the last place reached as key
                     sublogs[last_reached_marking] = pd.concat(
@@ -213,15 +201,16 @@ def get_sublogs_with_places(traces_to_be_repaired, event_log, net, im, fm):
                          move_on_log_subtrace], ignore_index=True)
 
                     # Reset the move_on_log_subtrace to be ready for the next potential sub-trace
-                    move_on_log_subtrace = pd.DataFrame(columns=event_log.columns)
-
+                    move_on_log_subtrace = pd.DataFrame(
+                        columns=event_log.columns)
 
             # Ignore all other alignment elements (e.g.: (>>, a)), since they have been fixed in previous steps
             else:
                 if index == alignment_len:
                     # Get last reached marking of the sub-trace.
                     # This corresponds to the marking reached before the sub-trace of moves on log started
-                    last_reached_marking = get_reached_marking(sync_moves_subtrace, net, im, fm)
+                    last_reached_marking = get_reached_marking(
+                        sync_moves_subtrace, net, im, fm)
 
                     # save the sub-trace of moves on log in the sub-traces map with the last place reached as key
                     sublogs[last_reached_marking] = pd.concat(
@@ -229,9 +218,9 @@ def get_sublogs_with_places(traces_to_be_repaired, event_log, net, im, fm):
                          move_on_log_subtrace], ignore_index=True)
 
                     # Reset the move_on_log_subtrace to be ready for the next potential sub-trace
-                    move_on_log_subtrace = pd.DataFrame(columns=event_log.columns)
+                    move_on_log_subtrace = pd.DataFrame(
+                        columns=event_log.columns)
                 continue
-    print("")
     return sublogs
 
 
@@ -251,7 +240,6 @@ def optimize_sublogs(sublogs):
         keys = list(sublogs.keys())
         # Flatten the keys to a list of places
         places = [item for sublist in keys for item in sublist]
-        pp.pprint(places)
 
         # Count the occurrences of each place in the list of places
         for place in places:
@@ -266,7 +254,8 @@ def optimize_sublogs(sublogs):
         for key, value in sublogs.items():
             if max_count_place in key:
                 optimized_sublogs[max_count_place] = pd.concat(
-                    [optimized_sublogs.get(max_count_place, pd.DataFrame(columns=value.columns)), value],
+                    [optimized_sublogs.get(max_count_place, pd.DataFrame(
+                        columns=value.columns)), value],
                     ignore_index=True)
                 # mark key for deletion
                 keys_to_delete.append(key)
@@ -288,24 +277,31 @@ def merge_and_connect_at_place(net, im, fm, sub_net, sub_im, sub_fm, place):
     sub_final_place_in_arcs = list(sub_final_place.in_arcs)
 
     # Connect the sub_net with the net at the place
-    if ((len(sub_start_place_out_arcs)==1) and (sub_start_place_out_arcs[0].target.label == None)):
-      petri_utils.add_arc_from_to(place, sub_start_place_out_arcs[0].target, net)
-      petri_utils.remove_place(net, sub_start_place)
+    if ((len(sub_start_place_out_arcs) == 1) and (sub_start_place_out_arcs[0].target.label == None)):
+        petri_utils.add_arc_from_to(
+            place, sub_start_place_out_arcs[0].target, net)
+        petri_utils.remove_place(net, sub_start_place)
     else:
-      net = add_skip_transition(net, place, sub_start_place, SUBPROCESS_BASE_NAME + '_from_' + place.name)
+        net = add_skip_transition(
+            net, place, sub_start_place, SUBPROCESS_BASE_NAME + '_from_' + place.name)
 
-    if ((len(sub_final_place_in_arcs)==1) and (sub_final_place_in_arcs[0].source.label == None)):
-      petri_utils.add_arc_from_to(sub_final_place_in_arcs[0].source, place, net)
-      petri_utils.remove_place(net, sub_final_place)
+    if ((len(sub_final_place_in_arcs) == 1) and (sub_final_place_in_arcs[0].source.label == None)):
+        petri_utils.add_arc_from_to(
+            sub_final_place_in_arcs[0].source, place, net)
+        petri_utils.remove_place(net, sub_final_place)
     else:
-      net = add_skip_transition(net, sub_final_place, place, SUBPROCESS_BASE_NAME + '_to_' + place.name)
+        net = add_skip_transition(
+            net, sub_final_place, place, SUBPROCESS_BASE_NAME + '_to_' + place.name)
 
     return net, im, fm
 
 # Input: Petri Net, two places and a transition, that should connect them
 # Output: Petri net with the two places connected via a copy of the transition
+
+
 def connect_places_via_transition(net, transition, from_place, to_place):
-    petri_utils.add_transition(net, name=transition.name, label=transition.label)
+    petri_utils.add_transition(
+        net, name=transition.name, label=transition.label)
     added_transition = get_transition_by_name(net, transition.name)
     petri_utils.add_arc_from_to(from_place, added_transition, net)
     petri_utils.add_arc_from_to(added_transition, to_place, net)
@@ -328,13 +324,15 @@ def repair_process_model(net, im, fm, event_log):
     traces = get_traces_from_log(event_log)
 
     # Identify the traces that are not fitting the process model:
-    traces_to_be_repaired = {k: v for k, v in traces.items() if not trace_is_fit(v, net, im, fm)}
+    traces_to_be_repaired = {
+        k: v for k, v in traces.items() if not trace_is_fit(v, net, im, fm)}
 
     # 1. Fix all moves on model
     # Identify the transitions to be skipped
     transitions_to_be_skipped = set()
     # Identify the transitions to be skipped
-    transitions_to_be_skipped = get_transitions_to_be_skipped(traces_to_be_repaired, net, im, fm)
+    transitions_to_be_skipped = get_transitions_to_be_skipped(
+        traces_to_be_repaired, net, im, fm)
 
     # Skip all transitions to be skipped by adding a new invisible "None" transition to the process model
     # with the same input and output places as the transition to be skipped
@@ -345,7 +343,8 @@ def repair_process_model(net, im, fm, event_log):
 
     # 2. Fix all moves on log
     # Create map of last place reached as key and sub-log dataframe of sub-traces as value
-    sublogs = get_sublogs_with_places(traces_to_be_repaired, event_log, net, im, fm)
+    sublogs = get_sublogs_with_places(
+        traces_to_be_repaired, event_log, net, im, fm)
 
     # 3. Optimise the sublogs
     sublogs = optimize_sublogs(sublogs)
@@ -356,7 +355,9 @@ def repair_process_model(net, im, fm, event_log):
         sub_net, sub_im, sub_fm = pm4py.discover_petri_net_inductive(sublog, activity_key='concept:name',
                                                                      case_id_key='case:concept:name',
                                                                      timestamp_key='time:timestamp')
-        net, im, fm = merge_and_connect_at_place(net, im, fm, sub_net, sub_im, sub_fm, place)#get_place_by_name(net, 'ent_Activity_1q2hj79'))
+        # get_place_by_name(net, 'ent_Activity_1q2hj79'))
+        net, im, fm = merge_and_connect_at_place(
+            net, im, fm, sub_net, sub_im, sub_fm, place)
 
     # 5. Return the repaired process model
     return net, im, fm
