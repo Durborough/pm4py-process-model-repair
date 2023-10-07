@@ -35,9 +35,6 @@ jobs:
     - name: Build package
       run: python -m build
       working-directory: ./pm4py_model_repair
-    - name: Build Dist
-      run: python -m build --sdist --wheel
-      working-directory: ./pm4py_model_repair
     - name: Publish package
       uses: pypa/gh-action-pypi-publish@release/v1
       with:

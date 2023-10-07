@@ -11,4 +11,5 @@ setup(
         'pm4py',
     ],
     py_modules=['process_model_repair_algorithm']
+    ,long_description=open('../README.md').read(),
 )
