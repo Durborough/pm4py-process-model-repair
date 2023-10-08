@@ -352,6 +352,7 @@ def repair_process_model(net, im, fm, event_log):
     # 4. Repair the model for each sublog, by discovering the process model of the sublog and
     # merging it into the original petri net at the last place reached before the sublog started (enabling place)
     for place, sublog in sublogs.items():
+        sublog['time:timestamp'] = pd.to_datetime(sublog['time:timestamp'])
         sub_net, sub_im, sub_fm = pm4py.discover_petri_net_inductive(sublog, activity_key='concept:name',
                                                                      case_id_key='case:concept:name',
                                                                      timestamp_key='time:timestamp')
