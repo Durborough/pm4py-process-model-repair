@@ -607,6 +607,7 @@ def repair_process_model(bpmn, event_log, activity_mappings):
     for place, sublog in sublogs.items():
         # Mine the sub-log for a bpmn model of the subprocess
         # Mine the sub-log for a process model petri net
+        sublog['time:timestamp'] = pd.to_datetime(sublog['time:timestamp'])
         sub_net, sub_im, sub_fm = pm4py.discover_petri_net_inductive(sublog,
                                                                      activity_key='concept:name',
                                                                      case_id_key='case:concept:name',

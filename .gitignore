@@ -1,0 +1,4 @@
+.DS_Store
+pm4py_model_repair/dist/
+pm4py_model_repair/pm4py_model_repair.egg-info
+pm4py_model_repair/build
